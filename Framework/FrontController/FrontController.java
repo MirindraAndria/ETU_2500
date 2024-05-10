@@ -15,7 +15,7 @@ public class FrontController extends HttpServlet {
 
             PrintWriter out = response.getWriter() ; 
             StringBuffer url = request.getRequestURL();
-            out.print("Test_FrameWork  , URL : " + url.toString()); 
+            out.print("Test FrameWork  , URL : " + url.toString()); 
     }
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
