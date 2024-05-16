@@ -5,6 +5,6 @@ javac -d . -cp "%jar%" *.java
 
 rem création du .war
 
-jar -cvf FrontController.jar servlet
+jar -cvf FrontController.jar servlet annotation
 
 pause
