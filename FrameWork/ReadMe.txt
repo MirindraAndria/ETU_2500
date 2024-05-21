@@ -13,11 +13,13 @@ Configuration Framework :
 			 - vos servlet-name devraient etre le nom vos .jar
 			 - de meme pour servlet-classe mais avec le nom de son package 
 
-			//Sprint 1 partie 1 
+			//Sprint 1 
 			 - Utiliser init-param pour ajouter le path en chemin relatif contenant vos .classe 
 			 - Ecrire dans le path le nom du package de votre .class avec un "/" apres 
-			
+
+            //Sprint 2 
+			 - url-pattern doit avoir le meme non d'annotation de votre methode
+
+
+
 			 - le servlet-mapping utilise aussi le non de vos .jar 
-			 - libre vous de votre url-pattern  
-			 
-				
