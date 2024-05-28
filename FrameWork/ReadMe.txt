@@ -17,8 +17,8 @@ Configuration Framework :
 			 - Utiliser init-param pour ajouter le path en chemin relatif contenant vos .classe 
 			 - Ecrire dans le path le nom du package de votre .class avec un "/" apres 
 
-            //Sprint 2 
-			 - url-pattern doit avoir le meme non d'annotation de votre methode
+            //Sprint 3 
+			 -Entrer juste l'url de votre project avec l'annotation de votre methode apres
 
 
 
