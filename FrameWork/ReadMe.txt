@@ -21,4 +21,4 @@ Configuration Framework :
 			 - le servlet-mapping utilise aussi le non de vos .jar 
 
 	    		//Sprint4    
-			- Inscrire l'annoation dans le path pour acceder au view
+			- Inscrire l'annotation dans le path pour acceder au view
