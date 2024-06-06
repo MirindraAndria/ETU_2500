@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import utility.Utility ; 
+import modelview.ModelView ; 
 
 public class FrontController extends HttpServlet {
     
@@ -65,6 +66,42 @@ public class FrontController extends HttpServlet {
         util.AddMethodeAnnotation( normalizedPath , packageName , this.HashmapUtility) ; 
     } 
 
+    public void dispacthModelView( ModelView mv , HttpServletRequest request  ,  HttpServletResponse response )
+    {
+        try{
+            Set<String> keyMap= mv.getData().keySet(); 
+            for(String keymap : keyMap)
+            {
+                request.setAttribute( keymap , mv.getData().get(keymap)) ; 
+            }
+            RequestDispatcher dispatch = request.getRequestDispatcher( mv.getUrl());
+            dispatch.forward(request, response);
+        }catch(Exception e )
+        { 
+            System.out.println(e);
+        }
+    }
+
+    public void ShowResult(Mapping value  , PrintWriter out  , HttpServletRequest request  ,  HttpServletResponse response )
+    {
+        try { 
+        out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
+        Class myClass = Class.forName(value.getClasseName());
+        Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
+        Method myMethod = myClass.getDeclaredMethod(value.getMethodeName() , new Class[0]) ; 
+        Object res = myMethod.invoke( myObject , new Object[0]) ; 
+
+            if( res instanceof ModelView)
+            {   this.dispacthModelView( (ModelView)res , request , response);  } 
+            if( res instanceof String)
+            {    out.print("Valeur de la methode String :" + res + "\n") ; }
+            else {  out.print("non reconnu") ;   }   
+        }catch(Exception e )
+        {
+            System.out.println(e) ; 
+        }
+    }
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException 
     {  
         try{
@@ -72,24 +109,14 @@ public class FrontController extends HttpServlet {
             StringBuffer url = request.getRequestURL();
             String urlString = url.toString();
             String transformed = this.transformPath(urlString) ; 
-               
+            
             Set<String> keysEncountered = new HashSet<>(); // Pour stocker les clés déjà rencontrées
             for (Map.Entry<String, Mapping> entry : this.HashmapUtility.entrySet()) {
                 String keyUrl = entry.getKey();
-                    Mapping value = entry.getValue();
+                Mapping value = entry.getValue();
                     if (this.pathVerification(transformed, keyUrl)) {
-                        out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
-                  
-                        Class myClass = Class.forName(value.getClasseName());
-                        Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
-                        Method myMethod = myClass.getDeclaredMethod(value.getMethodeName() , new Class[0]) ; 
-                        String result  = (String)myMethod.invoke( myObject , new Object[0]);
-
-                        out.print("Valeur du methode :" + result + "\n") ; 
-
-                    } else {
-                        out.print("Aucune Methode annote present dans les classes \n");
-                    }
+                        this.ShowResult(value  , out , request , response);
+                    } else {  out.print("Aucune Methode annote present dans les classes \n"); }
                 }
         }catch( Exception e ) 
         {
