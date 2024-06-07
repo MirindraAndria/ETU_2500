@@ -13,6 +13,7 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import utility.Utility ; 
 import modelview.ModelView ; 
+import exception.* ;
 
 public class FrontController extends HttpServlet {
     
@@ -28,8 +29,8 @@ public class FrontController extends HttpServlet {
             this.Source = this.getInitParameter("Source")  ;
             this.configMap(); 
         }catch(Exception e )
-        {
-            e.printStackTrace() ; 
+        {   
+                e.printStackTrace() ; 
         }
     } 
 
@@ -58,12 +59,17 @@ public class FrontController extends HttpServlet {
 
     public void configMap() throws Exception 
     {
-        Utility util = new Utility()  ; 
-        ServletContext context = getServletContext() ; 
-        String classpath = context.getResource(util.PathWithoutPackageName(this.Source)).getPath() ; 
-        String normalizedPath = util.normalizePath(classpath);   
-        String packageName = util.transformPath(this.Source) ;   
-        util.AddMethodeAnnotation( normalizedPath , packageName , this.HashmapUtility) ; 
+        try{
+            Utility util = new Utility()  ; 
+            ServletContext context = getServletContext() ; 
+            if( context.getResource(util.PathWithoutPackageName(this.Source)).getPath() != null){
+                String classpath = context.getResource(util.PathWithoutPackageName(this.Source)).getPath() ; 
+                String normalizedPath = util.normalizePath(classpath);   
+                String packageName = util.transformPath(this.Source) ;   
+                util.AddMethodeAnnotation( normalizedPath , packageName , this.HashmapUtility) ; 
+            }else {  throw new Exception("Error package Scan verify our file xml \n") ;  } 
+        }catch(Exception e )
+        { e.printStackTrace(); }   
     } 
 
     public void dispacthModelView( ModelView mv , HttpServletRequest request  ,  HttpServletResponse response )
@@ -82,57 +88,64 @@ public class FrontController extends HttpServlet {
         }
     }
 
-    public void ShowResult(Mapping value  , PrintWriter out  , HttpServletRequest request  ,  HttpServletResponse response )
+    public void ShowResult(Mapping value  , PrintWriter out  , HttpServletRequest request  ,  HttpServletResponse response )throws TypeErrorException
     {
         try { 
-        out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
-        Class myClass = Class.forName(value.getClasseName());
-        Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
-        Method myMethod = myClass.getDeclaredMethod(value.getMethodeName() , new Class[0]) ; 
-        Object res = myMethod.invoke( myObject , new Object[0]) ; 
+                out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
+                Class myClass = Class.forName(value.getClasseName());
+                Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
+                Method myMethod = myClass.getDeclaredMethod(value.getMethodeName() , new Class[0]) ; 
+                Object res = myMethod.invoke( myObject , new Object[0]) ; 
 
-            if( res instanceof ModelView)
-            {   this.dispacthModelView( (ModelView)res , request , response);  } 
-            if( res instanceof String)
-            {    out.print("Valeur de la methode String :" + res + "\n") ; }
-            else {  out.print("non reconnu") ;   }   
+                if( res instanceof String)
+                {  out.print("Valeur de la methode String :" + res + "\n") ; } 
+                else if( res instanceof ModelView)
+                {   this.dispacthModelView( (ModelView)res , request , response); }
+                else { throw new TypeErrorException(" Error Type of return incorrect methode "); }   
         }catch(Exception e )
-        {
-            System.out.println(e) ; 
-        }
+        {  e.printStackTrace() ; }
     }
 
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException 
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws TypeErrorException
     {  
         try{
             PrintWriter out = response.getWriter() ; 
             StringBuffer url = request.getRequestURL();
             String urlString = url.toString();
-            String transformed = this.transformPath(urlString) ; 
-            
-            Set<String> keysEncountered = new HashSet<>(); // Pour stocker les clés déjà rencontrées
-            for (Map.Entry<String, Mapping> entry : this.HashmapUtility.entrySet()) {
-                String keyUrl = entry.getKey();
-                Mapping value = entry.getValue();
-                    if (this.pathVerification(transformed, keyUrl)) {
-                        this.ShowResult(value  , out , request , response);
-                    } else {  out.print("Aucune Methode annote present dans les classes \n"); }
-                }
+            String transformed = this.transformPath(urlString) ;   
+            Mapping mapping = HashmapUtility.get(transformed);
+            if(mapping == null) {
+                throw new Exception("404 error , url incorrect");
+            }
+            else
+            { this.ShowResult(mapping  , out , request , response); }
+
         }catch( Exception e ) 
         {
-            System.out.println(e);
+           System.out.println(e) ; 
         }
     }
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        PrintWriter out = response.getWriter() ; 
+        try{
+            processRequest(request, response);
+        }catch(Exception e){
+                e.printStackTrace(out) ;
+        }
     }
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        processRequest(request, response);
+        PrintWriter out = response.getWriter() ; 
+        try{
+            processRequest(request, response);
+        }catch(Exception e )
+        {
+            e.printStackTrace(out) ;
+        }
     }
 }
 
