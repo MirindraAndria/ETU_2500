@@ -5,7 +5,11 @@ import java.lang.reflect.Method;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import annotation.AnnotationGet;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import exception.* ; 
+
 import mapping.Mapping;
 import annotation.* ; 
 
@@ -54,8 +58,7 @@ public class Utility {
         // Concatenange avec un point 
         String transformed =  lastElement + "." ; 
         return transformed;
-    }
-
+    } 
 
     //Concatenage du package et classeName 
     public String fusionPackageAndClassName(String className , String packageName)
@@ -63,38 +66,39 @@ public class Utility {
         String path =  packageName + className ; 
         return path ; 
     }
-
-
     public void AddMethodeAnnotation( String normalizedPath , String packageName  , HashMap HashmapUtility) throws Exception 
     {  
-        File classpathDirectory = new File(normalizedPath) ; 
-        for ( File file : classpathDirectory.listFiles() )   
-        {
-        //Prendre tous files avec avec un .class a la fin  
-             if(file.isFile() && file.getName().endsWith(".class"))
-             {   
-             
-                //Prendre le nom de la classe 
-                String className = file.getName().substring( 0 , file.getName().length() - 6 ) ; 
-                String trueClassName = this.fusionPackageAndClassName(className , packageName); 
-               
-                //Transformation en classe
-                 Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
-                    if(myclass.isAnnotationPresent(AnnotationController.class))
+        try {    
+            File classpathDirectory = new File(normalizedPath) ; 
+                    for ( File file : classpathDirectory.listFiles() )   
                     {
-                            Method [] methods = myclass.getDeclaredMethods() ;
-                            //Liste de Methode pour chaque Classe 
-                            for (Method method : methods)
-                                if(method.isAnnotationPresent(AnnotationGet.class))
+                        if(file.isFile() && file.getName().endsWith(".class"))
+                        {   
+                            String className = file.getName().substring( 0 , file.getName().length() - 6 ) ; 
+                            String trueClassName = this.fusionPackageAndClassName(className , packageName); 
+                            //Transformation en classe
+                            Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
+                                if(myclass.isAnnotationPresent(AnnotationController.class))
                                 {
-                                    AnnotationGet annotation = method.getAnnotation(AnnotationGet.class);
-                                    String url = annotation.name();
-                                    Mapping mapping = new Mapping( trueClassName, method.getName() )  ;
-                                    //Ajout des information dans le Hashmap 
-                                    HashmapUtility.put( url , mapping ) ;
+                                        Method [] methods = myclass.getDeclaredMethods() ;
+                                        //Liste de Methode pour chaque Classe 
+                                        for (Method method : methods)
+                                            if(method.isAnnotationPresent(AnnotationGet.class))  
+                                            {
+                                                AnnotationGet annotation = method.getAnnotation(AnnotationGet.class);
+                                                String url = annotation.name();
+                                                Mapping mapping = new Mapping( trueClassName, method.getName() )  ;
+                                                //Ajout des information dans le Hashmap 
+                                                if(HashmapUtility.containsKey(url))
+                                                { throw new DuplicateKeyException("Error Annotation duplicated : " + url + "\n"); }
+                                                HashmapUtility.put( url , mapping ) ;
+                                            }
                                 }
+                        } 
                     }
-            } 
-        }
-    } 
+        }catch( Exception e )
+        { e.printStackTrace(); } 
+    }
 }
+
+
