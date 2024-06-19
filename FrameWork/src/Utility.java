@@ -1,9 +1,14 @@
 package utility ; 
 
 import java.io.File;
+import java.io.PrintWriter;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -11,6 +16,7 @@ import java.util.Set;
 import exception.* ; 
 
 import mapping.Mapping;
+import modelview.ModelView;
 import annotation.* ; 
 
 public class Utility {
@@ -43,6 +49,28 @@ public class Utility {
             // Extract the substring up to the last '/'
             String transformed = path.substring(0, lastSlashIndex + 1);
             return transformed;
+    }
+    public boolean pathVerification(String path , String transformed)
+    {
+        if(path.equals(transformed))
+        {
+            return true ; 
+        }
+        return false ;
+    }
+
+    public String transformPath2(String path) {
+        //Verifier si le dernier caracter est un "/" 
+        if (path.endsWith("/")) {
+            //suppression du "/""
+            path = path.substring(0, path.length() - 1);
+        }
+        String[] parts = path.split("/");
+        //Dernier element du path 
+        String lastElement = parts[parts.length - 1];
+        // Concatenange avec un point 
+        String transformed = "/" + lastElement ; 
+        return transformed;
     }
 
 
@@ -99,6 +127,48 @@ public class Utility {
         }catch( Exception e )
         { e.printStackTrace(); } 
     }
+
+      public Object invokingMethod( ArrayList<Object> argsList , Object myObject , Method myMethod   ) throws Exception
+     {
+        try{
+        // Adapter les arguments pour correspondre au nombre de paramètres de la méthode
+        Object[] args = null ; 
+        Object res = null ; 
+        if( myMethod.getParameterCount() == 0  ) 
+        {
+            res = myMethod.invoke( myObject , new Object[0]) ;
+            return res ; 
+        }
+        args = argsList.toArray() ; 
+        while (args.length < myMethod.getParameterCount()  ) {
+            args = Arrays.copyOf(args, args.length + 1);
+            args[args.length - 1] = null; // Remplacer par null les arguments manquant
+        }
+        res = myMethod.invoke(myObject, args); 
+        return res ; 
+        }catch(Exception e){ e.printStackTrace();} return null ; 
+    } 
+    public Method checkMethod( Class myClass , String methodName ) throws Exception 
+    {
+        try{
+        Method myMethod = null ; 
+        Method [] Allmethod = myClass.getDeclaredMethods()  ; 
+        for( int i = 0 ; i < Allmethod.length  ; i++ )
+        {
+            if( Allmethod[i].getName().equals(methodName) )
+            {
+                myMethod = Allmethod[i];
+                return myMethod ;  
+            }
+        }
+        if( myClass.getDeclaredMethod( methodName, new Class[0]) != null)
+        {  return  myClass.getDeclaredMethod( methodName, new Class[0])  ; }
+        return myMethod ; 
+        }catch(Exception e){
+            e.printStackTrace();
+        } return null ; 
+    }
+   
 }
 
 
