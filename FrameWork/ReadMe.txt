@@ -25,3 +25,4 @@ Configuration Framework :
 			 - le servlet-mapping utilise aussi le non de vos .jar 
 
 	   /Sprint 6  des inputs de formulaire doivent avoir le meme nom que le nom des paramatres de votre methode dans le controller ou le meme nom que votre Annotation de parametre que vous creez
+	   
