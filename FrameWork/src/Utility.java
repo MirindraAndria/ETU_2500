@@ -3,10 +3,10 @@ package utility ;
 import java.io.File;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -14,10 +14,14 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import exception.* ; 
-
 import mapping.Mapping;
 import modelview.ModelView;
 import annotation.* ; 
+import jakarta.servlet.* ; 
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletResponse; 
+import jakarta.servlet.http.HttpServletRequest;
+import java.lang.reflect.* ;
 
 public class Utility {
     public Utility()
@@ -73,7 +77,6 @@ public class Utility {
         return transformed;
     }
 
-
     public String transformPath(String path) {
         //Verifier si le dernier caracter est un "/" 
         if (path.endsWith("/")) {
@@ -127,27 +130,27 @@ public class Utility {
         }catch( Exception e )
         { e.printStackTrace(); } 
     }
-
-      public Object invokingMethod( ArrayList<Object> argsList , Object myObject , Method myMethod   ) throws Exception
-     {
-        try{
-        // Adapter les arguments pour correspondre au nombre de paramètres de la méthode
-        Object[] args = null ; 
-        Object res = null ; 
-        if( myMethod.getParameterCount() == 0  ) 
-        {
-            res = myMethod.invoke( myObject , new Object[0]) ;
-            return res ; 
-        }
-        args = argsList.toArray() ; 
-        while (args.length < myMethod.getParameterCount()  ) {
-            args = Arrays.copyOf(args, args.length + 1);
-            args[args.length - 1] = null; // Remplacer par null les arguments manquant
-        }
-        res = myMethod.invoke(myObject, args); 
-        return res ; 
-        }catch(Exception e){ e.printStackTrace();} return null ; 
+    public Object invokingMethod( ArrayList<Object> argsList , Object myObject , Method myMethod   ) throws Exception
+    {
+       try{
+       // Adapter les arguments pour correspondre au nombre de paramètres de la méthode
+       Object[] args = null ; 
+       Object res = null ; 
+       if( myMethod.getParameterCount() == 0  ) 
+       {
+           res = myMethod.invoke( myObject , new Object[0]) ;
+           return res ; 
+       }
+       args = argsList.toArray() ; 
+       while (args.length < myMethod.getParameterCount()  ) {
+           args = Arrays.copyOf(args, args.length + 1);
+           args[args.length - 1] = null; // Remplacer par null les arguments manquant
+       }
+       res = myMethod.invoke(myObject, args); 
+       return res ; 
+       }catch(Exception e){ e.printStackTrace();} return null ; 
     } 
+   
     public Method checkMethod( Class myClass , String methodName ) throws Exception 
     {
         try{
@@ -168,7 +171,109 @@ public class Utility {
             e.printStackTrace();
         } return null ; 
     }
-   
+    
+    public boolean identifyType( String typeName)
+    {
+        boolean result = true ; 
+         if( typeName.equals("String")) 
+         { return result ; } 
+         if( typeName.equals("int") ) 
+         { return result ; }  
+         if( typeName.equals("Integer") ) 
+         { return result ; }  
+         if( typeName.equals("Double") ) 
+         { return result ; }  
+         if( typeName.equals("double") ) 
+         { return result ; } 
+         if( typeName.equals("Date") ) 
+         { return result ; } 
+         else
+         {
+             result = false ; //if type Object 
+             return result ; 
+         }
+    }
+  
+      
+    public String covertMinMaj ( String value )
+    {   
+        String firstChar = value.substring(0, 1).toUpperCase();
+        String newValue = firstChar + value.substring(1);
+        return newValue ;
+    }   
+
+  public void SetAttributeObject2(Method setMethod, String typefield, Object objClass, String[] partiesInput, HttpServletRequest request) throws Exception {
+    String parameterName = partiesInput[0] + "." + partiesInput[1];
+    String parameterValue = request.getParameter(parameterName);
+
+    try {
+        switch (typefield) {
+            case "String":
+                setMethod.invoke(objClass, parameterValue);
+                break;
+            case "int":
+                setMethod.invoke(objClass, Integer.valueOf(parameterValue));
+                break;
+            case "Integer":
+                setMethod.invoke(objClass, Integer.valueOf(parameterValue));
+                break;
+            case "double":
+                setMethod.invoke(objClass, Double.valueOf(parameterValue));
+                break;
+            case "Double":
+                setMethod.invoke(objClass, Double.valueOf(parameterValue));
+                break;
+            case "Date":
+                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // adjust format as needed
+                setMethod.invoke(objClass, dateFormat.parse(parameterValue));
+                break;
+            default:
+        throw new IllegalArgumentException("Unsupported type: " + typefield);
+        }
+    } catch (ParseException e) {
+        System.err.println("Error parsing date: " + parameterValue);
+    } catch (Exception e) {
+        System.err.println("Error invoking method: " + e.getMessage());
+    }
+}
+    public void SetAttributeObject(Method myMethod, ArrayList<Object> valueArg, String[] partiesInput, HttpServletRequest request , PrintWriter out ) throws Exception { 
+        try {
+
+            Parameter[] parameters = myMethod.getParameters();
+            int count = 0; 
+            for (Parameter parameter : parameters) {
+                Annotation paramAnnotations = parameter.getAnnotation(AnnotationParam.class);  
+                if (paramAnnotations != null) {
+                    AnnotationParam annotationParam = (AnnotationParam) paramAnnotations; 
+                    if (annotationParam.name().equals(partiesInput[0])) { // Annotation Param Object 
+                        Class<?> paramType = parameter.getType();
+                        if (this.identifyType( paramType.getSimpleName() )  == false) { // Si c'est un Object 
+                            Object objClass = valueArg.get(count); 
+                            Field[] fields = paramType.getDeclaredFields(); 
+                            for (Field field : fields) { 
+                                Annotation fieldAnnotations = field.getAnnotation(AnnotationField.class);  
+                                if (fieldAnnotations != null) {
+                                    AnnotationField annotationField = (AnnotationField) fieldAnnotations;         
+                                    if (annotationField.name().equals(partiesInput[1])) { // Annotation Field
+                                        field.setAccessible(true); // Accès champ privé
+                                        Method setMethod = paramType.getDeclaredMethod("set" + this.covertMinMaj(field.getName()), field.getType() );  
+                                        setMethod.setAccessible(true);     
+                                        this.SetAttributeObject2( setMethod , field.getType().getSimpleName()  , objClass ,  partiesInput ,  request )  ;
+                                        //throw new Exception("Count value :"  + count +  "ObjEmp : " + valueArg.get(count) +  " Set Succes2  "  + "set" + this.covertMinMaj(field.getName())   + " fieldType : "  + field.getType()  +  "\n") ;    
+                                    } 
+                                   // throw new Exception("Annot field present : " + annotationField.name() +  "\n") ;        
+                                }
+                            }
+                        }
+                    }
+                }
+                count++; 
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // Toujours bon de loguer les exceptions pour le debugging
+        }
+    }  
+
 }
 
 
