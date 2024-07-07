@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletResponse; 
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.* ;
+import session.MySession; 
 
 public class Utility {
     public Utility()
@@ -97,6 +98,35 @@ public class Utility {
         String path =  packageName + className ; 
         return path ; 
     }
+
+    public boolean identifyType( String typeName)
+    {
+        boolean result = true ; 
+         if( typeName.equals("String")) 
+         { return result ; } 
+         if( typeName.equals("int") ) 
+         { return result ; }  
+         if( typeName.equals("Integer") ) 
+         { return result ; }  
+         if( typeName.equals("Double") ) 
+         { return result ; }  
+         if( typeName.equals("double") ) 
+         { return result ; } 
+         if( typeName.equals("Date") ) 
+         { return result ; } 
+         else
+         {
+             result = false ; //if type Object 
+             return result ; 
+         }
+    }    
+    public String covertMinMaj ( String value )
+    {   
+        String firstChar = value.substring(0, 1).toUpperCase();
+        String newValue = firstChar + value.substring(1);
+        return newValue ;
+    }   
+
     public void AddMethodeAnnotation( String normalizedPath , String packageName  , HashMap HashmapUtility) throws Exception 
     {  
         try {    
@@ -130,6 +160,81 @@ public class Utility {
         }catch( Exception e )
         { e.printStackTrace(); } 
     }
+
+
+    public void verifyCorrespondenceAnnotation(  Annotation paramAnnotations , Class<?> paramType ,  ArrayList<Object> valueArg  , HttpServletRequest request ) throws Exception 
+    {  
+        try { 
+            if( paramAnnotations != null)
+            {       
+                    if( this.identifyType(paramType.getSimpleName() ) == false ){    //Si c'est un object 
+                        if( paramType.equals(MySession.class) )  //Verification is SessionType 
+                        {
+                            MySession mySession = new MySession( request.getSession()) ; 
+                            valueArg.add( mySession )  ; 
+                        }else{     
+                            Object objParam = paramType.getDeclaredConstructor().newInstance();
+                            valueArg.add( objParam )  ; 
+                        }
+                    }if( this.identifyType(paramType.getSimpleName() ) ){
+                        AnnotationParam annotationParam = (AnnotationParam) paramAnnotations;  //Si c'est Annottee
+                        valueArg.add( request.getParameter(  annotationParam.name() ) ) ;  
+                    // out.print("AnnotParma namer : " + annotationParam.name() +  "\n") ; 
+                    }
+            }
+        }catch( Exception e ) { e.printStackTrace() ;  }
+    }
+    public void verifyCorrespondenceNotAnnotation( Annotation paramAnnotations , Class<?> paramType ,  ArrayList<Object> valueArg , HttpServletRequest request ,  String paramName  ) throws Exception 
+    {
+        try { 
+            if( paramAnnotations == null ){ 
+                if( this.identifyType(paramType.getSimpleName() ) == false ){    //Si c'est un object 
+                    throw new Exception(" ETU 2785 : Parameter not Annot  present \n") ;      
+                }if( this.identifyType(paramType.getSimpleName() )  ){
+                    //valueArg.add( request.getParameter( paramName ) ) ; //Si c'est pas Annotter
+                    throw new Exception(" ETU 2785 : Parameter not Annot  present \n") ;      
+                }
+            }     
+        }catch( Exception e ) 
+        { e.printStackTrace();  }
+    }
+
+    public void verifyCorrespondenceFieldSession( Class ClassController , HttpServletRequest request  )
+    {
+         try{ 
+            Field[] fields = ClassController.getDeclaredFields();
+            for (Field field : fields) {
+                Class<?> fieldType = field.getType() ; 
+                String nameTypeField = fieldType.getSimpleName() ;
+                if ( nameTypeField.equals(MySession.class)) {
+                    field.setAccessible(true);
+                    MySession mySession = new MySession( request.getSession()) ; 
+                    field.set(this,  mySession );
+                }
+            } 
+         }catch( Exception e )
+         { e.printStackTrace(); }
+    } 
+    public ArrayList<Object> verifyCorrespondence( HttpServletRequest request  , Method myMethod   , PrintWriter out ) throws Exception
+    {
+        try{ 
+            ArrayList<Object> valueArg = new ArrayList<>() ; 
+            Parameter[] parameters = myMethod.getParameters();
+              for (Parameter parameter : parameters) {
+
+                        Annotation paramAnnotations = parameter.getAnnotation( AnnotationParam.class) ;  
+                        String paramName = parameter.getName();
+                        Class<?> paramType = parameter.getType();
+                        this.verifyCorrespondenceAnnotation( paramAnnotations , paramType , valueArg , request  ) ; 
+                        this.verifyCorrespondenceNotAnnotation( paramAnnotations , paramType , valueArg  , request , paramName ) ; 
+              }
+                return valueArg ; 
+             
+        }catch(Exception e )
+        { e.printStackTrace() ; }
+        return null ; 
+    } 
+  
     public Object invokingMethod( ArrayList<Object> argsList , Object myObject , Method myMethod   ) throws Exception
     {
        try{
@@ -172,71 +277,41 @@ public class Utility {
         } return null ; 
     }
     
-    public boolean identifyType( String typeName)
-    {
-        boolean result = true ; 
-         if( typeName.equals("String")) 
-         { return result ; } 
-         if( typeName.equals("int") ) 
-         { return result ; }  
-         if( typeName.equals("Integer") ) 
-         { return result ; }  
-         if( typeName.equals("Double") ) 
-         { return result ; }  
-         if( typeName.equals("double") ) 
-         { return result ; } 
-         if( typeName.equals("Date") ) 
-         { return result ; } 
-         else
-         {
-             result = false ; //if type Object 
-             return result ; 
-         }
-    }
-  
-      
-    public String covertMinMaj ( String value )
-    {   
-        String firstChar = value.substring(0, 1).toUpperCase();
-        String newValue = firstChar + value.substring(1);
-        return newValue ;
-    }   
-
+ 
   public void SetAttributeObject2(Method setMethod, String typefield, Object objClass, String[] partiesInput, HttpServletRequest request) throws Exception {
-    String parameterName = partiesInput[0] + "." + partiesInput[1];
-    String parameterValue = request.getParameter(parameterName);
-
-    try {
-        switch (typefield) {
-            case "String":
-                setMethod.invoke(objClass, parameterValue);
-                break;
-            case "int":
-                setMethod.invoke(objClass, Integer.valueOf(parameterValue));
-                break;
-            case "Integer":
-                setMethod.invoke(objClass, Integer.valueOf(parameterValue));
-                break;
-            case "double":
-                setMethod.invoke(objClass, Double.valueOf(parameterValue));
-                break;
-            case "Double":
-                setMethod.invoke(objClass, Double.valueOf(parameterValue));
-                break;
-            case "Date":
-                SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // adjust format as needed
-                setMethod.invoke(objClass, dateFormat.parse(parameterValue));
-                break;
-            default:
-        throw new IllegalArgumentException("Unsupported type: " + typefield);
+        String parameterName = partiesInput[0] + "." + partiesInput[1];
+        String parameterValue = request.getParameter(parameterName);
+        try {
+            switch (typefield) {
+                case "String":
+                    setMethod.invoke(objClass, parameterValue);
+                    break;
+                case "int":
+                    setMethod.invoke(objClass, Integer.valueOf(parameterValue));
+                    break;
+                case "Integer":
+                    setMethod.invoke(objClass, Integer.valueOf(parameterValue));
+                    break;
+                case "double":
+                    setMethod.invoke(objClass, Double.valueOf(parameterValue));
+                    break;
+                case "Double":
+                    setMethod.invoke(objClass, Double.valueOf(parameterValue));
+                    break;
+                case "Date":
+                    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd"); // adjust format as needed
+                    setMethod.invoke(objClass, dateFormat.parse(parameterValue));
+                    break;
+                default:
+        // throw new IllegalArgumentException("Unsupported type: " + typefield);
+            }
+        } catch (ParseException e) {
+        //  System.err.println("Error parsing date: " + parameterValue);
+        } catch (Exception e) {
+        //  System.err.println("Error invoking method: " + e.getMessage());
         }
-    } catch (ParseException e) {
-        System.err.println("Error parsing date: " + parameterValue);
-    } catch (Exception e) {
-        System.err.println("Error invoking method: " + e.getMessage());
     }
-}
-    public void SetAttributeObject(Method myMethod, ArrayList<Object> valueArg, String[] partiesInput, HttpServletRequest request , PrintWriter out ) throws Exception { 
+    public void SetAttributeObject(Method myMethod, ArrayList<Object> valueArg, String[] partiesInput, HttpServletRequest request , PrintWriter out ) throws Exception{ 
         try {
 
             Parameter[] parameters = myMethod.getParameters();
@@ -261,8 +336,8 @@ public class Utility {
                                         this.SetAttributeObject2( setMethod , field.getType().getSimpleName()  , objClass ,  partiesInput ,  request )  ;
                                         //throw new Exception("Count value :"  + count +  "ObjEmp : " + valueArg.get(count) +  " Set Succes2  "  + "set" + this.covertMinMaj(field.getName())   + " fieldType : "  + field.getType()  +  "\n") ;    
                                     } 
-                                   // throw new Exception("Annot field present : " + annotationField.name() +  "\n") ;        
                                 }
+                              
                             }
                         }
                     }

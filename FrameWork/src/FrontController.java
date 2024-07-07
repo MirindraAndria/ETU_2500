@@ -60,10 +60,10 @@ public class FrontController extends HttpServlet {
         String transformed = "/" + lastElement ; 
         return transformed;
     }
-
-    public void configMap() throws Exception 
+        
+    public void configMap() throws Exception
     {
-        try{
+     try{
             ServletContext context = getServletContext() ; 
             if( context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() != null){
                 String classpath = context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() ; 
@@ -90,51 +90,8 @@ public class FrontController extends HttpServlet {
             System.out.println(e);
         }
     }
-
-    public ArrayList<Object> verifyCorrespondence( HttpServletRequest request  , Method myMethod   , PrintWriter out ) throws Exception
-    {
-        try{ 
-            ArrayList<Object> valueArg = new ArrayList<>() ; 
-            Parameter[] parameters = myMethod.getParameters();
-              for (Parameter parameter : parameters) {
-
-                        Annotation paramAnnotations = parameter.getAnnotation( AnnotationParam.class) ;  
-                        String paramName = parameter.getName();
-                        Class<?> paramType = parameter.getType();
-                        if( paramAnnotations != null)
-                        {       
-                                out.print("paramType : " + paramType.getSimpleName() +  " \n") ; 
-                                if( this.util.identifyType(paramType.getSimpleName() ) == false ){    //Si c'est un object 
-                                    Object objParam = paramType.getDeclaredConstructor().newInstance();
-                                    valueArg.add( objParam )  ; 
-                                    out.print("Add obj \n") ;   
-                                }if( this.util.identifyType(paramType.getSimpleName() ) ){
-                                    AnnotationParam annotationParam = (AnnotationParam) paramAnnotations;  //Si c'est Annottee
-                                    valueArg.add( request.getParameter(  annotationParam.name() ) ) ;  
-                                    out.print("AnnotParma namer : " + annotationParam.name() +  "\n") ; 
-                                }
-                        }else { 
-                                if( this.util.identifyType(paramType.getSimpleName() ) == false ){    //Si c'est un object 
-                                    Object objParam = paramType.getDeclaredConstructor().newInstance();
-                                    valueArg.add( objParam )  ; 
-                                    out.print(" Add valuesArg Emp  no annotation \n ") ;
-                                }if( this.util.identifyType(paramType.getSimpleName() )  ){
-                                    valueArg.add( request.getParameter( paramName ) ) ; //Si c'est pas Annotter
-                                    out.print(" Add valuesArg String  no annotation \n ") ;
-                                }
-                        } 
-                }
-
-                return valueArg ; 
-             
-            }catch(Exception e )
-            {
-                e.printStackTrace() ;
-            }
-            return null ; 
-    } 
-   
-    public void setObjectParam ( Method myMethod  , ArrayList<Object> valueArg  ,HttpServletRequest request  , PrintWriter out ) throws Exception 
+ 
+    public void setObjectParam ( Method myMethod  , ArrayList<Object> valueArg  ,HttpServletRequest request  , PrintWriter out ) throws  Exception
     {
          try{ 
                 Enumeration<String> parameterNames = request.getParameterNames() ;   
@@ -152,15 +109,15 @@ public class FrontController extends HttpServlet {
          }catch(Exception e)
          { e.printStackTrace(); } 
     } 
- 
     public void ShowResult(Mapping value  , PrintWriter out  , HttpServletRequest request  ,  HttpServletResponse response  )throws TypeErrorException ,Exception
     {
         try { 
-                out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
+               // out.print("Classe Name : " + value.getClasseName() + " , " + "Methode Name : " + value.getMethodeName() + "\n");
                 Class myClass = Class.forName(value.getClasseName());
-                Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
                 Method myMethod = this.util.checkMethod(myClass, value.getMethodeName()  ) ;  
-                ArrayList<Object> valueArg = this.verifyCorrespondence( request , myMethod  , out ) ;
+                ArrayList<Object> valueArg = this.util.verifyCorrespondence( request , myMethod  , out ) ;
+                this.util.verifyCorrespondenceFieldSession(myClass , request ) ;
+                Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
                 Object res = this.util.invokingMethod( valueArg , myObject , myMethod ) ;    
                 this.setObjectParam(myMethod, valueArg, request , out);    
                 if( res instanceof String)
@@ -173,15 +130,14 @@ public class FrontController extends HttpServlet {
         }catch(Exception e )
         {  e.printStackTrace() ; }
     }
-
-    protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws TypeErrorException ,Exception
+    protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws TypeErrorException ,Exception  , IllegalArgumentException
     {  
+        PrintWriter out = response.getWriter() ; 
         try{
-            PrintWriter out = response.getWriter() ; 
             StringBuffer url = request.getRequestURL();
             String urlString = url.toString();
             String transformed = this.util.transformPath2(urlString) ;   
-            Mapping mapping = HashmapUtility.get(transformed);
+            Mapping mapping = HashmapUtility.get(transformed);  
             if(mapping == null) {
                 throw new Exception("404 error , url incorrect");
             }
@@ -190,30 +146,27 @@ public class FrontController extends HttpServlet {
 
         }catch( Exception e ) 
         {
-           System.out.println(e) ; 
+            request.setAttribute("errorMessage", e.getMessage());
+            RequestDispatcher dispatcher = request.getRequestDispatcher("Error.jsp");
+            dispatcher.forward(request, response);
         }
     }   
-
     @Override
-    protected void doGet(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        PrintWriter out = response.getWriter() ; 
-
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException{
         try{
             processRequest(request, response);
         }catch(Exception e){
-                e.printStackTrace(out) ;
+                e.printStackTrace() ;
         }
     }
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        PrintWriter out = response.getWriter() ; 
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException {
+      
         try{
             processRequest(request, response);
         }catch(Exception e )
         {
-            e.printStackTrace(out) ;
+            e.printStackTrace() ;
         }
     }
 }
