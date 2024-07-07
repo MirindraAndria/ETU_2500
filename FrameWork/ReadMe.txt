@@ -24,5 +24,6 @@ Configuration Framework :
 
 			 - le servlet-mapping utilise aussi le non de vos .jar 
 
-	   /Sprint 6  des inputs de formulaire doivent avoir le meme nom que le nom des paramatres de votre methode dans le controller ou le meme nom que votre Annotation de parametre que vous creez
-	   
+	   //Sprint 6  des inputs de formulaire doivent avoir le meme nom que le nom des paramatres de votre methode dans le controller ou le meme nom que votre Annotation de parametre que vous creez
+	   //Sprint 8  Pour utiliser une session , utiliser un variable de type MySession dans l'atttribute de votre class controller ou 
+	   comme parametre de la methode de votre class controller ; 
