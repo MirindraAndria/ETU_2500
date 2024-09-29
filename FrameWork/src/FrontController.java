@@ -17,12 +17,14 @@ import utility.Utility ;
 import modelview.ModelView ; 
 import exception.* ;
 import java.lang.annotation.Annotation;
+import com.google.gson.Gson;
+
 
 public class FrontController extends HttpServlet {
     
 
     private String Source ;  
-    private HashMap<String, Mapping> HashmapUtility =  new HashMap<>(); 
+    private HashMap<String, Mapping> hashmapUtility =  new HashMap<>(); 
     private Utility util = new Utility(); 
 
     public void init() throws ServletException 
@@ -69,7 +71,7 @@ public class FrontController extends HttpServlet {
                 String classpath = context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() ; 
                 String normalizedPath = this.util.normalizePath(classpath);   
                 String packageName = this.util.transformPath(this.Source) ;   
-                this.util.AddMethodeAnnotation( normalizedPath , packageName , this.HashmapUtility) ; 
+                this.util.AddMethodeAnnotation( normalizedPath , packageName , this.hashmapUtility) ; 
             }else {  throw new Exception("Error package Scan verify our file xml \n") ;  } 
         }catch(Exception e )
         { e.printStackTrace(); }   
@@ -109,6 +111,49 @@ public class FrontController extends HttpServlet {
          }catch(Exception e)
          { e.printStackTrace(); } 
     } 
+    
+
+    public boolean verifyAnnotaionrRestApi( Method mymethod ) throws Exception  { 
+        try {
+            ServletContext context = getServletContext() ; 
+            if( context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() != null){
+                String classpath = context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() ; 
+                String normalizedPath = this.util.normalizePath(classpath);   
+                String packageName = this.util.transformPath(this.Source) ;  
+                boolean result = this.util.CheckAnnotationRestApi( mymethod , normalizedPath, packageName) ; 
+                return result ; 
+            }else {  throw new Exception("Error package Scan verify our file xml in verifyAnnRestApi \n") ;  } 
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+        return false ; 
+    }
+    
+    public void ShowResultJson( boolean boolRestapi , Object res , PrintWriter out ,  HttpServletRequest request  ,  HttpServletResponse response  ) throws TypeErrorException 
+    {
+        if( boolRestapi ) { 
+            response.setContentType("application/json");
+            Gson gson = new Gson();
+            if (  res instanceof ModelView ) 
+            { 
+                ((ModelView)res).getUrl() ; 
+                String jsonUrl = gson.toJson(((ModelView)res).getUrl()) ; 
+                String jsonData = gson.toJson(((ModelView)res).getData()); 
+                String jsonData2 = gson.toJson(((ModelView)res).getData().get("DataUser")); 
+                out.print("Url json  :" + jsonUrl + "\n") ; 
+                out.write("Data json write  :" + jsonData  + "\n") ; 
+            }else { 
+                String json = gson.toJson(res) ; 
+                out.print( "Data not mv : " + res  + '\n'  ) ; 
+            }
+        }else{
+            if( res instanceof String)
+            {  out.print("Valeur de la methode String :" + res + "\n") ; } 
+            else if( res instanceof ModelView)
+            {   this.dispacthModelView( (ModelView)res , request , response); }
+            else { throw new TypeErrorException(" Error Type of return incorrect methode "); }   
+        }    
+    } 
     public void ShowResult(Mapping value  , PrintWriter out  , HttpServletRequest request  ,  HttpServletResponse response  )throws TypeErrorException ,Exception
     {
         try { 
@@ -118,18 +163,16 @@ public class FrontController extends HttpServlet {
                 ArrayList<Object> valueArg = this.util.verifyCorrespondence( request , myMethod  , out ) ;
                 this.util.verifyCorrespondenceFieldSession(myClass , request ) ;
                 Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
-                Object res = this.util.invokingMethod( valueArg , myObject , myMethod ) ;    
-                this.setObjectParam(myMethod, valueArg, request , out);    
-                if( res instanceof String)
-                {  out.print("Valeur de la methode String :" + res + "\n") ; } 
-                else if( res instanceof ModelView)
-                {  
-                    this.dispacthModelView( (ModelView)res , request , response); 
-                }
-                else { throw new TypeErrorException(" Error Type of return incorrect methode "); }   
+                Object res = this.util.invokingMethod( valueArg , myObject , myMethod ) ; 
+                boolean boolRestapi = this.verifyAnnotaionrRestApi( myMethod ) ; 
+                this.setObjectParam(myMethod, valueArg, request , out); 
+                this.ShowResultJson(boolRestapi, res , out , request , response  );
+
         }catch(Exception e )
-        {  e.printStackTrace() ; }
+        {  e.printStackTrace();  }
     }
+
+
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws TypeErrorException ,Exception  , IllegalArgumentException
     {  
         PrintWriter out = response.getWriter() ; 
@@ -137,7 +180,7 @@ public class FrontController extends HttpServlet {
             StringBuffer url = request.getRequestURL();
             String urlString = url.toString();
             String transformed = this.util.transformPath2(urlString) ;   
-            Mapping mapping = HashmapUtility.get(transformed);  
+            Mapping mapping = hashmapUtility.get(transformed);  
             if(mapping == null) {
                 throw new Exception("404 error , url incorrect");
             }
@@ -150,7 +193,9 @@ public class FrontController extends HttpServlet {
             RequestDispatcher dispatcher = request.getRequestDispatcher("Error.jsp");
             dispatcher.forward(request, response);
         }
-    }   
+    }
+    
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException{
         try{
@@ -160,8 +205,7 @@ public class FrontController extends HttpServlet {
         }
     }
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException {
-      
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)throws ServletException, IOException {  
         try{
             processRequest(request, response);
         }catch(Exception e )
@@ -170,5 +214,6 @@ public class FrontController extends HttpServlet {
         }
     }
 }
+
 
 
