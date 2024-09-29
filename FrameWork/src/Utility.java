@@ -130,6 +130,7 @@ public class Utility {
     public void AddMethodeAnnotation( String normalizedPath , String packageName  , HashMap HashmapUtility) throws Exception 
     {  
         try {    
+
             File classpathDirectory = new File(normalizedPath) ; 
                     for ( File file : classpathDirectory.listFiles() )   
                     {
@@ -147,7 +148,10 @@ public class Utility {
                                             if(method.isAnnotationPresent(AnnotationGet.class))  
                                             {
                                                 AnnotationGet annotation = method.getAnnotation(AnnotationGet.class);
-                                                String url = annotation.name();
+                                                AnnotationRestapi annotationApi = method.getAnnotation(AnnotationRestapi.class);
+                                                String url = "" ; 
+                                                if ( annotation != null ) {  url = annotation.name(); }
+                                                else { url =  annotationApi.nameApi() ; }
                                                 Mapping mapping = new Mapping( trueClassName, method.getName() )  ;
                                                 //Ajout des information dans le Hashmap 
                                                 if(HashmapUtility.containsKey(url))
@@ -159,6 +163,31 @@ public class Utility {
                     }
         }catch( Exception e )
         { e.printStackTrace(); } 
+    }
+
+    public boolean CheckAnnotationRestApi (Method myMethod ,  String normalizedPath , String packageName  ){ 
+        try {
+            
+            File classpathDirectory = new File(normalizedPath) ; 
+            for ( File file : classpathDirectory.listFiles() )   
+            {
+                if(file.isFile() && file.getName().endsWith(".class"))
+                {   
+                    String className = file.getName().substring( 0 , file.getName().length() - 6 ) ; 
+                    String trueClassName = this.fusionPackageAndClassName(className , packageName); 
+                    //Transformation en classe
+                    Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
+                    Method [] methods = myclass.getDeclaredMethods() ;
+                        for (Method method : methods)
+                            if(method.isAnnotationPresent(AnnotationRestapi .class) && myMethod.getName().equals(method.getName()))  
+                            { return true ; }  
+                    } 
+            } 
+                return false;  
+        } catch (Exception e) {
+            // TODO: handle exception
+        }
+            return false ;
     }
 
 

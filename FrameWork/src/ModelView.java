@@ -4,10 +4,10 @@ import java.util.HashMap;
 
 public class ModelView{
     String url ; 
-    HashMap<String , Object > data = new HashMap<>() ; 
+    HashMap<String , Object > data  ; 
     public ModelView()
     {
-
+        this.data = new HashMap<>() ;  // Initialisation de la HashMap de données 
     } 
     public String getUrl() {
         return url;
@@ -22,6 +22,6 @@ public class ModelView{
         this.data = data;
     } 
     public void addObject(String key , Object value) {
-        this.data.put( key , value ) ;
+        this.data.put( key , value ) ; 
     }
 }
