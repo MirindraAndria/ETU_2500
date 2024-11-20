@@ -2,7 +2,7 @@ package utility ;
 
 import java.io.File;
 import java.io.PrintWriter;
-import java.lang.annotation.Annotation;
+import java.lang.annotation.*;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
@@ -22,9 +22,15 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletResponse; 
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.* ;
-import session.MySession;
-import vm.VerbeMethod; 
+import java.math.BigDecimal;
 
+import session.MySession;
+import validation.Validation;
+import vm.VerbeMethod; 
+import jakarta.servlet.http.Part;
+import jakarta.servlet.annotation.MultipartConfig;
+
+@MultipartConfig
 public class Utility {
     public Utility()
     {
@@ -115,6 +121,8 @@ public class Utility {
          { return result ; } 
          if( typeName.equals("Date") ) 
          { return result ; } 
+         if( typeName.equals("Part"))
+         { return result ; }
          else
          {
              result = false ; //if type Object 
@@ -139,12 +147,10 @@ public class Utility {
         return "GET" ; // annotation get default  
     }
 
-
     //Scan url 
     public void AddMethodeAnnotation( String normalizedPath , String packageName  , HashMap hashmapUtility) throws Exception 
     {  
         try {    
-
             File classpathDirectory = new File(normalizedPath) ; 
                     for ( File file : classpathDirectory.listFiles() )   
                     {
@@ -155,9 +161,7 @@ public class Utility {
                             //Transformation en classe
                             Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
                                 if(myclass.isAnnotationPresent(AnnotationController.class))
-                                {
-                                    this.scan_url(trueClassName , myclass , hashmapUtility ) ; 
-                                }
+                                { this.scan_url(trueClassName , myclass , hashmapUtility ) ; }
                         } 
                     }
         }catch( Exception e )
@@ -166,44 +170,39 @@ public class Utility {
 
     public void scan_url( String classeName , Class<?> myClass , HashMap hashmapUtility  ) throws Exception { 
         Method [] methods = myClass.getDeclaredMethods() ;
-        //Liste de Methode pour chaque Classe 
         String url = "" ; 
-        HashSet<VerbeMethod> ls_verbeMethods = new HashSet<VerbeMethod>() ;
         for (Method method : methods) {
-                Url annotationUrl = method.getAnnotation(Url.class);
-               if ( annotationUrl != null) {
-                    url = annotationUrl.nameUrl();
-                    if (hashmapUtility.containsKey(url)) { 
-                        String verbe = this.checkVerbe( method);
-                        VerbeMethod verbeMethod = new VerbeMethod(verbe, method.getName());
-                        if ( this.checkVerbeDuplicate(ls_verbeMethods, verbeMethod)) {
-                            throw new Exception("Erreur : 2 URL :'" + url + "' avec 2 verbe :'" + verbe + "' identique");
-                        }
-                        else {
-                            ls_verbeMethods.add(verbeMethod);
-                            hashmapUtility.put(url, new Mapping( classeName , ls_verbeMethods) ) ;
-                        }  
-                    }
-                    String verbe = this.checkVerbe( method);
-                    if(  ls_verbeMethods.add(new VerbeMethod(verbe, method.getName())) == false ) { 
-                        throw new Exception("Erreur 2 verbe et 2 methodName identique"); 
-                    }else {
-                        ls_verbeMethods.add(new VerbeMethod(verbe, method.getName()));
-                        hashmapUtility.put(url, new Mapping( classeName , ls_verbeMethods) ) ; } 
+            Url annotationUrl = method.getAnnotation(Url.class);
+            this.putHashmap( hashmapUtility , annotationUrl , method , url , classeName );  
+        }
+    }    
+
+    public void putHashmap( HashMap hashmapUtility, Url annotationUrl , Method method , String url , String classeName) throws Exception{
+        if (annotationUrl != null) {
+            url = annotationUrl.nameUrl();
+            String verbe = this.checkVerbe(method);
+            VerbeMethod verbeMethod = new VerbeMethod(verbe, method.getName());
+            if (hashmapUtility.containsKey(url)) {
+                HashSet<VerbeMethod> ls_verbeMethods = ((Mapping)hashmapUtility.get(url)).getVerbeMethods();
+                if (this.checkVerbeDuplicate(ls_verbeMethods, verbeMethod)) { throw new Exception("Erreur : 2 URL :'" + url + "' avec 2 verbe :'" + verbe + "' identique") ; } 
+                else {
+                    ls_verbeMethods.add(verbeMethod);
+                    hashmapUtility.put(url, new Mapping(classeName, ls_verbeMethods));
                 }
-        }   
-}    
-
-public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMethod vm) {
-    if (ls_verbeMethods.stream().anyMatch(v -> v.getVerb().equals(vm.getVerb()))) {
-        return true; 
-    } else {
-        return false;
+            } 
+            else {   
+                HashSet<VerbeMethod> ls_verbeMethods = new HashSet<>();
+                // if(  ls_verbeMethods.add(new VerbeMethod(verbe, method.getName())) == false ) {  throw new Exception("Erreur 2 verbe et 2 methodName identique"); }
+                ls_verbeMethods.add(verbeMethod);
+                hashmapUtility.put(url, new Mapping(classeName, ls_verbeMethods));
+            }
+        }
+     }
+    public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMethod vm) {
+        if (ls_verbeMethods.stream().anyMatch(v -> v.getVerb().equals(vm.getVerb()))) { return true; } 
+        else { return false ; }
     }
-}
-    
 
-  
     public boolean CheckAnnotationRestApi (Method myMethod ,  String normalizedPath , String packageName  ){ 
         try {
             
@@ -218,7 +217,7 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
                     Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
                     Method [] methods = myclass.getDeclaredMethods() ;
                         for (Method method : methods)
-                            if(method.isAnnotationPresent(AnnotationRestapi .class) && myMethod.getName().equals(method.getName()))  
+                            if(method.isAnnotationPresent(AnnotationRestapi.class) && myMethod.getName().equals(method.getName()))  
                             { return true ; }  
                     } 
             } 
@@ -229,8 +228,7 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
             return false ;
     }
 
-
-    public void verifyCorrespondenceAnnotation(  Annotation paramAnnotations , Class<?> paramType ,  ArrayList<Object> valueArg  , HttpServletRequest request ) throws Exception 
+    public void verifyCorrespondenceAnnotation(  Annotation paramAnnotations , Class<?> paramType ,  ArrayList<Object> valueArg  , HttpServletRequest request , HttpServletResponse response) throws Exception 
     {  
         try { 
             if( paramAnnotations != null)
@@ -244,14 +242,44 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
                             Object objParam = paramType.getDeclaredConstructor().newInstance();
                             valueArg.add( objParam )  ; 
                         }
-                    }if( this.identifyType(paramType.getSimpleName() ) ){
+                    }if( this.identifyType( paramType.getSimpleName() ) ){
                         AnnotationParam annotationParam = (AnnotationParam) paramAnnotations;  //Si c'est Annottee
-                        valueArg.add( request.getParameter(  annotationParam.name() ) ) ;  
+                        if(paramType.equals(Part.class)) { 
+                            System.out.println(" annotation name ::: " + annotationParam.name() +"\n"   );
+                            valueArg.add(  request.getPart( annotationParam.name() ) ) ; 
+                            Part partFile  = (Part)request.getPart( annotationParam.name() ) ; 
+                            saveFile( partFile , response);
+                        }else {  valueArg.add( request.getParameter(  annotationParam.name() ) ) ; }
                     // out.print("AnnotParma namer : " + annotationParam.name() +  "\n") ; 
                     }
             }
-        }catch( Exception e ) { e.printStackTrace() ;  }
+        }catch( Exception e ) { e.printStackTrace() ; }
     }
+
+    public void saveFile( Part partFile , HttpServletResponse response) { 
+        try { 
+        String fileName = getFileName( partFile );
+        String savePath = "D:\\IT UNIVERSITY\\WorkSpace\\S4\\Projet_Mr_Aina\\Framework\\Sprint12\\" + fileName;
+        partFile.write(savePath);
+        response.getWriter().println("Fichier téléchargé avec succès : " + fileName);
+        }catch(Exception e ) 
+        { 
+            e.printStackTrace() ; 
+        } 
+    }
+
+    public String getFileName(Part part) {
+        try{ 
+        String contentDisposition = part.getHeader("content-disposition");
+        for (String cd : contentDisposition.split(";")) {
+            if (cd.trim().startsWith("filename")) {
+                return cd.substring(cd.indexOf('=') + 1).trim().replace("\"", "");
+            }
+        }
+        }catch ( Exception e ) { e.printStackTrace() ; }
+        return null;
+    }
+
     public void verifyCorrespondenceNotAnnotation( Annotation paramAnnotations , Class<?> paramType ,  ArrayList<Object> valueArg , HttpServletRequest request ,  String paramName  ) throws Exception 
     {
         try { 
@@ -283,17 +311,16 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
          }catch( Exception e )
          { e.printStackTrace(); }
     } 
-    public ArrayList<Object> verifyCorrespondence( HttpServletRequest request  , Method myMethod   , PrintWriter out ) throws Exception
+    public ArrayList<Object> verifyCorrespondence( HttpServletRequest request  , HttpServletResponse response , Method myMethod   , PrintWriter out ) throws Exception
     {
         try{ 
             ArrayList<Object> valueArg = new ArrayList<>() ; 
             Parameter[] parameters = myMethod.getParameters();
               for (Parameter parameter : parameters) {
-
                         Annotation paramAnnotations = parameter.getAnnotation( AnnotationParam.class) ;  
                         String paramName = parameter.getName();
                         Class<?> paramType = parameter.getType();
-                        this.verifyCorrespondenceAnnotation( paramAnnotations , paramType , valueArg , request  ) ; 
+                        this.verifyCorrespondenceAnnotation( paramAnnotations , paramType , valueArg , request , response ) ; 
                         this.verifyCorrespondenceNotAnnotation( paramAnnotations , paramType , valueArg  , request , paramName ) ; 
               }
                 return valueArg ; 
@@ -379,7 +406,29 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
         //  System.err.println("Error invoking method: " + e.getMessage());
         }
     }
-    public void SetAttributeObject(Method myMethod, ArrayList<Object> valueArg, String[] partiesInput, HttpServletRequest request , PrintWriter out ) throws Exception{ 
+
+
+    //Validation 
+    public int checkAnnotationDecimal( Field field ) { 
+        if( field.isAnnotationPresent(AnnotationDecimal.class) )
+        {  return 1 ; } 
+        else { return 0 ; } 
+    }
+
+    public void CheckValidation (Method myMethod ,  String nameInput , HttpServletRequest request , Field field) throws Exception{ 
+        try {
+                AnnotationDecimal  fieldAnnotations = field.getAnnotation(AnnotationDecimal.class);  
+                Validation validation = new Validation() ;  
+                validation.validateValue( Double.valueOf(request.getParameter( nameInput )) , Double.valueOf( fieldAnnotations.min())  , Double.valueOf(fieldAnnotations.max()) ) ;  
+        } catch (Exception e) {
+            e.printStackTrace(); 
+        }
+    }  
+    public void manageValidation (Method myMethod , String nameInput , HttpServletRequest request , Field field) throws Exception{  
+        if( checkAnnotationDecimal(field) == 1 ) {  this.CheckValidation(myMethod, nameInput, request, field) ; } 
+    }
+    ///Set attribute Object
+    public void SetAttributeObject(Method myMethod, ArrayList<Object> valueArg, String[] partiesInput, HttpServletRequest request , String nameInput , PrintWriter out ) throws Exception{ 
         try {
 
             Parameter[] parameters = myMethod.getParameters();
@@ -394,10 +443,12 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
                             Object objClass = valueArg.get(count); 
                             Field[] fields = paramType.getDeclaredFields(); 
                             for (Field field : fields) { 
+                                this.manageValidation(myMethod, nameInput, request, field);
                                 Annotation fieldAnnotations = field.getAnnotation(AnnotationField.class);  
                                 if (fieldAnnotations != null) {
                                     AnnotationField annotationField = (AnnotationField) fieldAnnotations;         
                                     if (annotationField.name().equals(partiesInput[1])) { // Annotation Field
+
                                         field.setAccessible(true); // Accès champ privé
                                         Method setMethod = paramType.getDeclaredMethod("set" + this.covertMinMaj(field.getName()), field.getType() );  
                                         setMethod.setAccessible(true);     
@@ -413,7 +464,7 @@ public boolean checkVerbeDuplicate(HashSet<VerbeMethod> ls_verbeMethods, VerbeMe
                 count++; 
             }
         } catch (Exception e) {
-            e.printStackTrace(); // Toujours bon de loguer les exceptions pour le debugging
+            e.printStackTrace(); 
         }
     }  
 
