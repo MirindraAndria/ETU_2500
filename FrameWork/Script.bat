@@ -7,5 +7,5 @@ javac -d "src" -cp "%jar%;%jar2%;%jar3%" src/*.java
 
 rem Création du fichier .jar
 cd src
-jar -cvf FrontController.jar servlet annotation mapping utility modelview exception session vm validation
+jar -cvf FrontController.jar servlet annotation mapping utility modelview exception session vm validation authentification
 pause

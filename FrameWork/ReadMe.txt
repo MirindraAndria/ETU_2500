@@ -27,4 +27,15 @@ Configuration Framework :
 	   //Sprint 6  des inputs de formulaire doivent avoir le meme nom que le nom des paramatres de votre methode dans le controller ou le meme nom que votre Annotation de parametre que vous creez
 	   //Sprint 8  Pour utiliser une session , utiliser un variable de type MySession dans l'atttribute de votre class controller ou 
 	   comme parametre de la methode de votre class controller ; 
-	   //Sprint 9 Annotater le method par AnnotationRestApi pour retourner les Valeur en JSON 
+	   //Sprint 9 Annotater le method par AnnotationRestApi pour retourner les Valeur en JSON
+	   
+
+	   //Sprint 14 Validation :: ajouter une annotation sur un champ de votre class : 
+ 	   @AnnotationDecimal(min = "10.00", max = "20.00")
+    	   int age ; 
+	   verifier ensuite votre valeur dans une page ex :  request.getAttribute("Emp.age_error")  
+	
+	   //Sprint 15 Authentification :: ajouter une annotation ex : @AnnotationAuth( name="dg") sur un controller et faire une session avant d'y acceder ex :   				   session.addSession( "role" , "dg") ;   
+	   configurer le non du session dans le web.xml et l'authentification et leur niveau dans un fichier .txt 
+
+	

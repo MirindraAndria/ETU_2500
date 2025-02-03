@@ -3,6 +3,7 @@ package servlet ;
 import java.util.*;
 
 import annotation.*;
+import authentification.*;
 import java.text.* ; 
 import java.io.* ; 
 import java.lang.reflect.* ;
@@ -13,6 +14,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.net.URLDecoder;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import utility.*;
@@ -27,6 +29,7 @@ import jakarta.servlet.http.HttpSession;
 import session.* ; 
 import modelview.ModelView;
 
+
 @MultipartConfig
 public class FrontController extends HttpServlet {
     
@@ -34,6 +37,9 @@ public class FrontController extends HttpServlet {
     private String Source ;  
     private HashMap<String, Mapping> hashmapUtility =  new HashMap<>(); 
     private Utility util = new Utility(); 
+    private List<AuthLevel> authLevels ;
+    private String sessionAuth ;   
+    public FrontController () { }
 
     public void init() throws ServletException 
     {
@@ -75,16 +81,23 @@ public class FrontController extends HttpServlet {
     {
      try{
             ServletContext context = getServletContext() ; 
+            String authFilePath = context.getRealPath(context.getInitParameter("authFilePath"));
+            this.authLevels = util.getAuthLevels(authFilePath ) ; 
+            this.sessionAuth = context.getInitParameter("sessionAuth");
+            System.out.println("Aut SESSION: " + this.sessionAuth + "\n" ) ; 
+
             if( context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() != null){
                 String classpath = context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() ; 
                 String normalizedPath = this.util.normalizePath(classpath);   
-                String packageName = this.util.transformPath(this.Source) ;   
-                this.util.AddMethodeAnnotation( normalizedPath , packageName , this.hashmapUtility) ; 
+                String packageName = this.util.transformPath(this.Source) ;
+
+                this.util.AddMethodeAnnotation( normalizedPath , packageName , this.hashmapUtility ) ; 
             }else {  throw new Exception("Error package Scan verify our file xml \n") ;  } 
         }catch(Exception e )
         { e.printStackTrace(); }   
-    } 
 
+    } 
+    
     public void dispacthModelView(  ModelView mv , HttpServletRequest request  ,  HttpServletResponse response )
     {
         try{
@@ -95,12 +108,8 @@ public class FrontController extends HttpServlet {
             String httpMethod = request.getMethod(); 
             for(String keymap : keyMap)
             { request.setAttribute( keymap , mv.getData().get(keymap)) ; }
-
-           
                 RequestDispatcher dispatch = request.getRequestDispatcher( url ); 
-                dispatch.forward(request, response);
-            
-      
+                dispatch.forward(request, response); 
         }catch(Exception e )
         { 
             System.out.println(e);
@@ -139,6 +148,21 @@ public class FrontController extends HttpServlet {
         return false ; 
     }
 
+    public void verifyAnnotationAuth( Method mymethod , HttpServletRequest request  ) throws Exception  { 
+        try {
+            ServletContext context = getServletContext() ; 
+            if( context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() != null){
+                String classpath = context.getResource(this.util.PathWithoutPackageName(this.Source)).getPath() ; 
+                String normalizedPath = this.util.normalizePath(classpath);   
+                String packageName = this.util.transformPath(this.Source) ;  
+                this.util.CheckAnnotationAuth(mymethod, normalizedPath, packageName, request, this.sessionAuth, this.authLevels);
+            }else {  throw new Exception("Error package Scan verify our file xml in verifyAnnotationAuth \n") ;  } 
+        } catch (Exception e) {
+            e.printStackTrace(); 
+            throw e ; 
+        }
+    } 
+
     public boolean verifyUrlMethod( Method myMethod , String pathValidation ) throws Exception  { 
         try {
             ServletContext context = getServletContext() ; 
@@ -148,7 +172,7 @@ public class FrontController extends HttpServlet {
                 String packageName = this.util.transformPath(this.Source) ;  
                 boolean result = this.util.CheckAnnotationMethod(myMethod, normalizedPath, packageName , pathValidation  ) ;
                 return result ; 
-            }else {  throw new Exception("Error package Scan verify our file xml in verifyAnnRestApi \n") ;  } 
+            }else {  throw new Exception("Error package \n") ;  } 
         } catch (Exception e) {
             // TODO: handle exception
         }
@@ -193,7 +217,6 @@ public class FrontController extends HttpServlet {
                         ValueAndError value =  entry.getValue();           
                         request.setAttribute(key ,  value.getError() + "<script> window.history.pushState({}, \"\", \""+ packageProjectName + pathValidation +"\"); console.log(\"referer not move\")</script>") ; 
                         request.setAttribute( key+"_init" , value.getValue()  ) ; 
-                      
                     }      
                     return true ; 
                 }
@@ -214,8 +237,10 @@ public class FrontController extends HttpServlet {
                 ArrayList<Object> valueArg = this.util.verifyCorrespondence( request , response , myMethod  ) ;
                 this.util.verifyCorrespondenceFieldSession(myClass , request ) ;
                 Object myObject = myClass.getDeclaredConstructor(new Class[0]).newInstance(new Object[0]) ; 
-                boolean boolRestapi = this.verifyAnnotaionrRestApi( myMethod ) ; 
+                boolean boolRestapi = this.verifyAnnotaionrRestApi( myMethod ) ;
+                this.verifyAnnotationAuth(myMethod, request);
                 this.setObjectParam(myMethod, valueArg, request ); 
+                
                 Object res = null ; 
                     if( this.setErrorValidation( request, response, valueArg, myObject, myMethod )  ) { 
                         String referer = request.getHeader("Referer");
@@ -233,14 +258,16 @@ public class FrontController extends HttpServlet {
                             //this.setObjectParam(myMethod1, valueArg1, request );
                             res = this.util.invokingMethod( valueArg1 , myObject1 , myMethod1 ) ;  
                         } 
-                        
                     } else { 
                         res = this.util.invokingMethod( valueArg , myObject , myMethod ) ; 
                     }
                 this.ShowResultJson( boolRestapi, res , out , request , response );
                 
         }catch(Exception e )
-        {  e.printStackTrace();  }
+        { 
+            e.printStackTrace(); 
+            throw e ; 
+        }
     }
 
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)throws TypeErrorException ,Exception  , IllegalArgumentException
@@ -264,6 +291,7 @@ public class FrontController extends HttpServlet {
             }
         }catch( Exception e ) 
         {
+           // System.out.println( "error Auth : " + e.getMessage() );
             request.setAttribute("errorMessage", e.getMessage());
             RequestDispatcher dispatcher = request.getRequestDispatcher("Error.jsp");
             dispatcher.forward(request, response);

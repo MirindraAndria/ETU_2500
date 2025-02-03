@@ -1,9 +1,12 @@
 package utility ; 
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.PrintWriter;
 import java.lang.annotation.*;
 import java.net.URLDecoder;
+import java.net.http.HttpRequest;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -11,12 +14,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import exception.* ; 
 import mapping.Mapping;
 import modelview.ModelView;
-import annotation.* ; 
+import annotation.* ;
+import authentification.AuthLevel;
 import jakarta.servlet.* ; 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletResponse; 
@@ -381,7 +386,6 @@ public class Utility {
         } return null ; 
     }
     
- 
   public void SetAttributeObject2(Method setMethod, String typefield, Object objClass, String[] partiesInput, HttpServletRequest request) throws Exception {
         String parameterName = partiesInput[0] + "." + partiesInput[1];
         String parameterValue = request.getParameter(parameterName);
@@ -564,6 +568,74 @@ public class Utility {
         return false ; 
     }
 
+
+    //Authentification 
+    public List<AuthLevel> getAuthLevels(String authFilePath) throws Exception {
+    List<AuthLevel> authLevels = new ArrayList<>();
+    try (BufferedReader reader = new BufferedReader(new FileReader(authFilePath))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+            // Supposons que les lignes du fichier suivent le format : "name level"
+            String[] parts = line.trim().split("\\s+");
+            if (parts.length == 2) {
+                String nameAuth = parts[0];
+                int level = Integer.parseInt(parts[1]);
+                authLevels.add(new AuthLevel(nameAuth, level));
+            }
+        }
+    } catch (Exception e) {
+        throw new Exception("Erreur lors de la lecture du fichier auth.txt", e);
+    }
+         return authLevels;
+    }
+
+    public void CheckAnnotationAuth (Method myMethod ,  String normalizedPath , String packageName , HttpServletRequest request , String authSessionName , List<AuthLevel> ls_AuthLevels) throws Exception{ 
+        try {     
+            File classpathDirectory = new File(normalizedPath) ; 
+            for ( File file : classpathDirectory.listFiles() )   
+            {
+                if(file.isFile() && file.getName().endsWith(".class"))
+                {   
+                    String className = file.getName().substring( 0 , file.getName().length() - 6 ) ; 
+                    String trueClassName = this.fusionPackageAndClassName(className , packageName); 
+                    //Transformation en classe
+                    Class<?> myclass = Thread.currentThread().getContextClassLoader().loadClass(trueClassName) ; 
+                    Method [] methods = myclass.getDeclaredMethods() ;
+                        for (Method method : methods)
+                            if(method.isAnnotationPresent(AnnotationAuth.class) && myMethod.getName().equals(method.getName()))  
+                            { 
+                                AnnotationAuth authAnnotation = method.getAnnotation(AnnotationAuth.class);
+                                MySession sessionAuth = new MySession (request.getSession() ) ;
+                                this.verifyLevelAuthentification(sessionAuth , ls_AuthLevels , authAnnotation , authSessionName ) ;
+                            }  
+                    } 
+            } 
+        } catch (Exception e) {
+           e.printStackTrace();
+           throw e; 
+        }
+    }
+
+    public int addLevelAuthName( String authName , List<AuthLevel> authLevels ) { 
+        for( AuthLevel authLevel : authLevels ) { 
+            if( authName.equals(authLevel.getNameAuth() ) )  {
+                return authLevel.getLevel() ;
+            }
+        }
+        return -1 ;  
+    }
+    
+    public void verifyLevelAuthentification ( MySession sessionAuth , List<AuthLevel> ls_AuthLevels , AnnotationAuth authAnnotation  , String authSession ) throws Exception {   
+       if (!authAnnotation.name().equals((String) sessionAuth.getSession(authSession))) { 
+            String authNameAnnotation = authAnnotation.name() ;  
+            String authNameSession = (String) sessionAuth.getSession( authSession ) ;
+            int levelauthNameAnnotation = this.addLevelAuthName( authNameAnnotation, ls_AuthLevels) ; 
+            int levelauthNameSession = this.addLevelAuthName(authNameSession, ls_AuthLevels) ; 
+            if( levelauthNameAnnotation > levelauthNameSession ) {
+                throw new Exception("Vous n'avez pas les droits pour effectuer cette action");
+            }
+        }
+    } 
 }
 
 
